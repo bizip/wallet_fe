@@ -1,6 +1,6 @@
 // hooks/useAuth.ts
 import { useState, useEffect } from 'react';
-import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../helpers/firebase.config';
 import { TokenManager } from '../hooks/tokenManager';
 
@@ -31,7 +31,6 @@ export const useAuth = () => {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const token = await userCredential.user.getIdToken(); 
-      console.log("lllllll+===========llllll",token);
       await TokenManager.setToken(token);
       return userCredential.user;
     } catch (error) {
@@ -51,16 +50,33 @@ export const useAuth = () => {
     }
   };
 
+  const signOutUser = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await auth.signOut();
+      // Check if the user is signed out
+      if (auth.currentUser === null) {
+        setUser(null);
+      }
+    } catch (error) {
+      setError('Sign out failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getToken = async () => {
     const user = auth.currentUser;
     if (user) {
-      const token = await user.getIdToken(true); // Force refresh
+      const token = await user.getIdToken(true);
       return token;
     }
-    return null; // Return null if no user is authenticated
+    return null;
   };
 
 
 
-  return { user, loading, error, signIn, getToken};
+  return { user, loading, error, signIn, signOutUser, getToken};
 };
