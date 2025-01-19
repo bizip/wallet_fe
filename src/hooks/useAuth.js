@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../helpers/firebase.config';
+import { TokenManager } from '../hooks/tokenManager';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -29,6 +30,9 @@ export const useAuth = () => {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const token = await userCredential.user.getIdToken(); 
+      console.log("lllllll+===========llllll",token);
+      await TokenManager.setToken(token);
       return userCredential.user;
     } catch (error) {
       // Centralized error handling
@@ -47,5 +51,16 @@ export const useAuth = () => {
     }
   };
 
-  return { user, loading, error, signIn };
+  const getToken = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken(true); // Force refresh
+      return token;
+    }
+    return null; // Return null if no user is authenticated
+  };
+
+
+
+  return { user, loading, error, signIn, getToken};
 };

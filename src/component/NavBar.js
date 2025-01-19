@@ -1,7 +1,21 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Link } from 'react-router-dom';
+import { useAuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 const NavBar = () => {
+  const { user, } = useAuthContext();
+  const { getToken } = useAuth();
+  useEffect(() => {
+    const logToken = async () => {
+      const token = await getToken();
+      console.log('User Token:', token);
+      console.log( "thisis the user fro context");
+    };
+
+    logToken();
+  }, [getToken]);
+
   return (
     
 
