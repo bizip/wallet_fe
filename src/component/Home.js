@@ -3,6 +3,9 @@ import React, { useEffect, useState } from 'react';
 import NavBar from './NavBar';
 import { fetchData } from '../hooks/api';
 import { useAuthContext } from '../context/AuthContext';
+import { Pie } from 'react-chartjs-2';
+import { Chart, ArcElement, Tooltip, Legend } from 'chart.js';
+Chart.register(ArcElement, Tooltip, Legend);
 
 const Home = () => {
   const [showForm, setShowForm] = useState(false);
@@ -25,8 +28,48 @@ const Home = () => {
   const { getToken
   } = useAuthContext();
 
-  const [startDate, setStartDate] = useState(new Date('2023-01-01')); 
-  const [endDate, setEndDate] = useState(new Date('2023-12-31')); // State for end date
+  const [startDate, setStartDate] = useState(new Date('2023-01-01'));
+  const [endDate, setEndDate] = useState(new Date('2023-12-31'));
+
+  const chartData = {
+    labels: ['Income', 'Expense'],
+    datasets: [
+      {
+        data: [summary?.income || 0, summary?.expense || 0],
+        backgroundColor: ['#36A2EB', '#FF6384'],
+        hoverBackgroundColor: ['#36A2EB', '#FF6384'],
+      },
+    ],
+  };
+
+  useEffect(() => {
+    const chartInstance = new Chart(document.getElementById('myChart'), {
+      type: 'pie',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          tooltip: {
+            callbacks: {
+              label: (tooltipItem) => {
+                const label = tooltipItem.label || '';
+                const value = tooltipItem.raw || 0;
+                return `${label}: $${value.toFixed(2)}`;
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return () => {
+      chartInstance.destroy(); // Cleanup the chart instance on unmount
+    };
+  }, [chartData]);
 
   const accounts = [
     { id: 'bank1', name: 'Primary Bank Account', type: 'Bank' },
@@ -36,7 +79,7 @@ const Home = () => {
   ];
 
   const categories = [
-    { 
+    {
       id: 'food',
       name: 'Food & Dining',
       subcategories: [
@@ -88,18 +131,18 @@ const Home = () => {
       ...(name === 'category' && { subcategory: '' })
     }));
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Form submitted:', formData);
-    
+
     setLoading(true); // Set loading to true
     setError(null); // Reset any previous error
 
     try {
       const token = await getToken();
-      const response = await fetchData('/transactions', token, 'POST', formData); 
-      console.log("response",response);
+      const response = await fetchData('/transactions', token, 'POST', formData);
+      console.log("response", response);
       if (response?.data.status !== 201) {
         throw new Error('Failed to submit transaction');
       }
@@ -149,7 +192,7 @@ const Home = () => {
       setReport(reportData); // Set the generated report
     };
 
-    getData(); 
+    getData();
   }, [startDate, endDate]); // Re-run effect when startDate or endDate changes
 
   if (loading) return <div>Loading...</div>;
@@ -160,187 +203,191 @@ const Home = () => {
     <div className='pt-32 m-8'>
       <NavBar />
       <div className="p-4">
-      <div className='w-full flex justify-between'>
-      <div className="bg-white p-4 rounded-lg shadow-md mb-8">
-        <h3 className="text-lg font-semibold text-gray-700">Summary</h3>
-        <div className="mt-2 flex justify-between text-gray-500">
-          <div>
-            <span className="font-semibold text-green-600">Income:</span> ${summary.income.toFixed(2)}
-          </div>
-          <div>
-            <span className="font-semibold text-red-600 ml-4">Expense:</span> ${summary.expense.toFixed(2)}
-          </div>
-        </div>
-        <div className="mt-4">
-          <label className="font-semibold p-8">Select Date Range for generatin the report</label>
-          <div className="flex space-x-4 p-4">
-            <input
-              type="date"
-              value={startDate.toISOString().split('T')[0]} // Format date for input
-              onChange={(e) => setStartDate(new Date(e.target.value))}
-              className="border rounded-lg p-2"
-            />
-            <input
-              type="date"
-              value={endDate.toISOString().split('T')[0]} // Format date for input
-              onChange={(e) => setEndDate(new Date(e.target.value))}
-              className="border rounded-lg p-2"
-            />
-          </div>
-        </div>
-        {report && (
-          <div className="mt-4">
-            <h4 className="text-md font-semibold text-gray-700">Report</h4>
-            <div className="text-gray-500">
-              <p>Total Income: ${report.totalIncome.toFixed(2)}</p>
-              <p>Total Expense: ${report.totalExpense.toFixed(2)}</p>
-              <p>Balance: ${report.balance.toFixed(2)}</p>
+        <div className='w-full flex justify-between'>
+        {!showForm && <div className="bg-white p-4 rounded-lg shadow-md mb-8">
+            <h3 className="text-lg font-semibold text-gray-700">Summary</h3>
+            <div className="mt-2 flex justify-between text-gray-500">
+              <div>
+                <span className="font-semibold text-green-600">Income:</span> ${summary.income.toFixed(2)}
+              </div>
+              <div>
+                <span className="font-semibold text-red-600 ml-4">Expense:</span> ${summary.expense.toFixed(2)}
+              </div>
             </div>
-          </div>
+            <div className="mt-8 mb-8 w-[60%] flex flex justify-center items-center">
+              <Pie data={chartData} />
+            </div>
+            <div className="mt-4">
+              <label className="font-semibold p-8">Select Date Range for generatin the report</label>
+              <div className="flex space-x-4 p-4">
+                <input
+                  type="date"
+                  value={startDate.toISOString().split('T')[0]} // Format date for input
+                  onChange={(e) => setStartDate(new Date(e.target.value))}
+                  className="border rounded-lg p-2"
+                />
+                <input
+                  type="date"
+                  value={endDate.toISOString().split('T')[0]} // Format date for input
+                  onChange={(e) => setEndDate(new Date(e.target.value))}
+                  className="border rounded-lg p-2"
+                />
+              </div>
+            </div>
+            {report && (
+              <div className="mt-4">
+                <h4 className="text-md font-semibold text-gray-700">Report</h4>
+                <div className="text-gray-500">
+                  <p>Total Income: ${report.totalIncome.toFixed(2)}</p>
+                  <p>Total Expense: ${report.totalExpense.toFixed(2)}</p>
+                  <p>Balance: ${report.balance.toFixed(2)}</p>
+                </div>
+              </div>
+            )}
+          </div>}
+          <button
+            className=" bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 "
+            style={{
+              padding: '2px 4px', maxHeight: '50px'
+            }}
+
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : 'Add New Transaction'}
+          </button>
+        </div>
+
+        {showForm && (
+          <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-lg space-y-4">
+            <div className="flex flex-col">
+              <label htmlFor="amount" className="font-semibold">Amount</label>
+              <input
+                type="number"
+                id="amount"
+                name="amount"
+                value={formData.amount}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="type" className="font-semibold">Type</label>
+              <select
+                id="type"
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              >
+                <option value="">Select Type</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="account" className="font-semibold">Account</label>
+              <select
+                id="account"
+                name="account"
+                value={formData.account}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              >
+                <option value="">Select Account</option>
+                {accounts.map(account => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} ({account.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="category" className="font-semibold">Category</label>
+              <select
+                id="category"
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              >
+                <option value="">Select Category</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="subcategory" className="font-semibold">Subcategory</label>
+              <select
+                id="subcategory"
+                name="subcategory"
+                value={formData.subcategory}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+                disabled={!formData.category}
+              >
+                <option value="">Select Subcategory</option>
+                {getSubcategories().map(subcategory => (
+                  <option key={subcategory.id} value={subcategory.id}>
+                    {subcategory.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="description" className="font-semibold">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label htmlFor="date" className="font-semibold">Date</label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700"
+              >
+                Submit
+              </button>
+            </div>
+          </form>
         )}
-      </div>
-  <button
-    className=" bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 "
-    style={{
-      padding: '2px 4px',  maxHeight: '50px'}}
-
-    onClick={() => setShowForm(!showForm)}
-  >
-    {showForm ? 'Cancel' : 'Add New Transaction'}
-  </button>
-</div>
-
-       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-lg space-y-4">
-          <div className="flex flex-col">
-            <label htmlFor="amount" className="font-semibold">Amount</label>
-            <input
-              type="number"
-              id="amount"
-              name="amount"
-              value={formData.amount}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="type" className="font-semibold">Type</label>
-            <select
-              id="type"
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            >
-              <option value="">Select Type</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="account" className="font-semibold">Account</label>
-            <select
-              id="account"
-              name="account"
-              value={formData.account}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            >
-              <option value="">Select Account</option>
-              {accounts.map(account => (
-                <option key={account.id} value={account.id}>
-                  {account.name} ({account.type})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="category" className="font-semibold">Category</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            >
-              <option value="">Select Category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="subcategory" className="font-semibold">Subcategory</label>
-            <select
-              id="subcategory"
-              name="subcategory"
-              value={formData.subcategory}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-              disabled={!formData.category}
-            >
-              <option value="">Select Subcategory</option>
-              {getSubcategories().map(subcategory => (
-                <option key={subcategory.id} value={subcategory.id}>
-                  {subcategory.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="description" className="font-semibold">Description</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col">
-            <label htmlFor="date" className="font-semibold">Date</label>
-            <input
-              type="date"
-              id="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-              className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="px-6 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700"
-            >
-              Submit
-            </button>
-          </div>
-        </form>
-      )}
       </div>
       {!showForm && Object.values(data) && Object.values(data).length === 0 && (
         <div className="mt-8 text-center text-gray-500">
           No transactions available.
         </div>
       )}
-      {!showForm && Object.values(data).length > 0  && <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+      {!showForm && Object.values(data).length > 0 && <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
         <table className="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
             <tr>
@@ -363,7 +410,7 @@ const Home = () => {
                     <td className="px-6 py-4">{entry.id}</td>
                     <td className="px-6 py-4">${entry.amount}</td>
                     <td className={`px-6 py-4 ${entry.type === 'income' ? 'text-blue-500' : 'text-red-500'}`}>
-                        {entry.type}
+                      {entry.type}
                     </td>
                     <td className="px-6 py-4">{entry.category}</td>
                     <td className="px-6 py-4">{entry.subcategory}</td>
